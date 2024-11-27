@@ -88,7 +88,7 @@ To address the **first** access pattern, the **'userid'** uniquely identifies ea
 
 This raw health data is collected every second, minute, or at specific intervals, depending on the metric code, and is stored in a single DynamoDB table. Although there is currently no need to retrieve insights for a metric code context on every second, minute, hour, or custom time range, it's crucial to design the schema to support these future access patterns. Thus, the sort key should be a composite of health_metric, metric_context, and timestamp, separated by a delimiter (e.g., **health_metric#metric_context#timestamp**). This structure not only anticipates future needs but also allows more targeted queries. Without a composite sort key, fetching a specific metric—like sleep_count in the 'awake' context—would require retrieving all health data for the user within a time range and then filtering unwanted items, which is inefficient at scale. Using a composite sort key streamlines queries and enhances efficiency. 
 
-**Based on the ingested data, a sample item in the table would look like this:**
+**Based on the ingested data, a sample item in the primary table would look like this:**
 
 | | Attribute | Value |
 | --- | --- | --- |
