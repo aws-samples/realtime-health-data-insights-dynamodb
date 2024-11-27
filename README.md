@@ -86,7 +86,7 @@ These are the access patterns we'll be considering for the Health data insights 
 
 To address the **first** access pattern, the **'userid'** uniquely identifies each user, making it an ideal candidate for the partition key. Health metric data is recorded with a timestamp indicating when the measurement occurred, which makes the **'timestamp'** a logical choice for the sort key.
 
-This raw health data is collected every second, minute, or at specific intervals, depending on the metric code, and is stored in a single DynamoDB table. Although there is currently no need to retrieve insights for a metric code context on every second, minute, hour, or custom time range, it's crucial to design the schema to support these future access patterns. Thus, the sort key should be a composite of health_metric, metric_context, and timestamp, separated by a delimiter (e.g., health_metric#metric_context#timestamp). This structure not only anticipates future needs but also allows more targeted queries. Without a composite sort key, fetching a specific metric—like sleep_count in the 'awake' context—would require retrieving all health data for the user within a time range and then filtering unwanted items, which is inefficient at scale. Using a composite sort key streamlines queries and enhances efficiency. 
+This raw health data is collected every second, minute, or at specific intervals, depending on the metric code, and is stored in a single DynamoDB table. Although there is currently no need to retrieve insights for a metric code context on every second, minute, hour, or custom time range, it's crucial to design the schema to support these future access patterns. Thus, the sort key should be a composite of health_metric, metric_context, and timestamp, separated by a delimiter (e.g., **health_metric#metric_context#timestamp**). This structure not only anticipates future needs but also allows more targeted queries. Without a composite sort key, fetching a specific metric—like sleep_count in the 'awake' context—would require retrieving all health data for the user within a time range and then filtering unwanted items, which is inefficient at scale. Using a composite sort key streamlines queries and enhances efficiency. 
 
 **Based on the ingested data, a sample item in the table would look like this:**
 
@@ -104,9 +104,9 @@ The key condition for the query uses partition key **userid="1234567"** and sort
 "sleep_count#awake#2024-11-24 00:00:00"**  
 This query will only read the relevant items.
 
-To address the **second** access pattern, the **'userid'** uniquely identifies each user, making it an ideal candidate for the partition key. Health metric data is recorded with a date indicating the specific day of aggregation, making **'date'** a logical choice for the sort key. However, to accommodate access patterns **3 to 8**, which focus on specific health metrics, the sort key needs to be a composite of health_metric, metric_context, and date, separated by a delimiter (e.g., health_metric#metric_context#date). This composite sort key structure allows for more efficient and targeted queries.
+To address the **second** access pattern, the **'userid'** uniquely identifies each user, making it an ideal candidate for the partition key. Health metric data is recorded with a date indicating the specific day of aggregation, making **'date'** a logical choice for the sort key. However, to accommodate access patterns **3 to 8**, which focus on specific health metrics, the sort key needs to be a composite of health_metric, metric_context, and date, separated by a delimiter (e.g., **health_metric#metric_context#date**). This composite sort key structure allows for more efficient and targeted queries.
 
-**Based on the daily summary data, a sample item in the table would look like this:**
+**Based on the daily summary data, a sample item in the aggregated table would look like this:**
 
 | | Attribute | Value |
 | --- | --- | --- |
@@ -160,7 +160,9 @@ Below are sample responses for each insight type, which will be used to render c
 			"date": "2024-06-02",
 			"value": "95.12"
 		},
+
 		{"Data for remaining days in the week": "..."}
+		
 		]
 	}
 ```
@@ -181,17 +183,19 @@ Below are sample responses for each insight type, which will be used to render c
 		"max": "95.46",
 		"change": "-0.27",
 		"data": [
-			{
-				"label": "01 Jun",
-				"date": "2024-06-01",
-				"value": "94.89"
-			},
-			{
-				"label": "02 Jun",
-				"date": "2024-06-02",
-				"value": "95.12"
-			},
-			{"Data for remaining days in the month": "..."}
+		{
+			"label": "01 Jun",
+			"date": "2024-06-01",
+			"value": "94.89"
+		},
+		{
+			"label": "02 Jun",
+			"date": "2024-06-02",
+			"value": "95.12"
+		},
+		
+		{"Data for remaining days in the month": "..."}
+
 		]
 	}
 ```
@@ -212,19 +216,21 @@ Below are sample responses for each insight type, which will be used to render c
 		"max": "95.23",
 		"change": "-0.28",
 		"data": [
-			{
-				"label": "01 Jan",
-				"startDate": "2024-01-01",
-				"endDate": "2024-01-07",
-				"value": "95.23"
-			},
-			{
-				"label": "08 Jan",
-				"startDate": "2024-01-08",
-				"endDate": "2024-01-14",
-				"value": "94.64"
-			},
-			{"Data for remaining weeks in the 6 months range" : "..."}
+		{
+			"label": "01 Jan",
+			"startDate": "2024-01-01",
+			"endDate": "2024-01-07",
+			"value": "95.23"
+		},
+		{
+			"label": "08 Jan",
+			"startDate": "2024-01-08",
+			"endDate": "2024-01-14",
+			"value": "94.64"
+		},
+
+		{"Data for remaining weeks in the 6 months range" : "..."}
+		
 		]
 	}
 ```
@@ -245,19 +251,21 @@ Below are sample responses for each insight type, which will be used to render c
 		"max": "95.08",
 		"change": "0.15",
 		"data": [
-			{
-				"label": "01 Jan",
-				"startDate": "2024-01-01",
-				"endDate": "2024-01-31",
-				"value": "94.84"
-			},
-			{
-				"label": "01 Feb",
-				"startDate": "2024-02-01",
-				"endDate": "2024-02-29",
-				"value": "94.56"
-			},
-			{"Data for remaining months in the year" : "..."}
+		{
+			"label": "01 Jan",
+			"startDate": "2024-01-01",
+			"endDate": "2024-01-31",
+			"value": "94.84"
+		},
+		{
+			"label": "01 Feb",
+			"startDate": "2024-02-01",
+			"endDate": "2024-02-29",
+			"value": "94.56"
+		},
+
+		{"Data for remaining months in the year" : "..."}
+		
 		]
 	}
 ```
@@ -291,7 +299,7 @@ From the command line, use AWS SAM to build and deploy the AWS resources as spec
 
 **Stack Name:** {Enter your preferred stack name}  
 **AWS Region:** {Enter your preferred region}  
-**Parameter HDIS3BucketName:** {Enter the name of the bucket where the sample data will be uploaded for import.}  
+**Parameter HDIS3BucketName:** {Enter the name of the bucket where the sample data will be uploaded for import}  
 **Confirm changes before deploy:** Y  
 **Allow SAM CLI IAM role creation:** Y  
 **Disable rollback:** N  
@@ -304,14 +312,14 @@ From the command line, use AWS SAM to build and deploy the AWS resources as spec
 ## Testing
 
 **Sample Data:**
-- Sample health data is available in the "sample-data" directory within this repository.
+- Sample health data is available in the **"sample-data"** directory within this repository.
 - You can use these sample files or provide your own data for testing purposes.
 
 **CSV file Upload:**
 - Upload the sample data csv files to the S3 bucket, which was specified during deployment.
 
 **Lambda Functions:**
-- The first Lambda function is triggered by an S3 PUT event when a new file is uploaded to the designated S3 bucket. This function imports the raw data into the 'hdi-health-data' DynamoDB table, which is configured to capture item-level changes through a DynamoDB stream. A second Lambda function is triggered by these updates, generating daily summaries for updated health metrics per user and storing the aggregated values in a separate DynamoDB table, 'hdi-aggregated-daily'.
+- The first Lambda function is triggered by an S3 PUT event when a new file is uploaded to the designated S3 bucket. This function imports the raw data into the **'hdi-health-data'** DynamoDB table, which is configured to capture item-level changes through a DynamoDB stream. A second Lambda function is triggered by these updates, generating daily summaries for updated health metrics per user and storing the aggregated values in a separate DynamoDB table, **'hdi-aggregated-daily'**.
 
 **Verification Steps:**
 - Explore the items in the **hdi-aggregated-daily** table to view the aggregated health data for each health metric code and its data context for each user.
@@ -328,8 +336,8 @@ You can test the function using the following input payload, replacing the place
 ```
 
 - To load test the aggregation and insights API, you can deploy the "Distributed Load Testing (DLT) on AWS" solution available here [DLT on AWS](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/).
-  
-Once deployed you can invoke the insights API using the API Gateway end point that was provisioned as part of deployment process. Please refer to the API URL from the deployment output
+
+Once deployed you can invoke the insights API using the API Gateway end point that was provisioned as part of deployment process. **Please refer to the API URL from the deployment output**.
 
 **Sample load test reference at scale**
 
