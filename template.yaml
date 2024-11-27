@@ -1,0 +1,264 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 
+  Health Data insights
+
+Parameters:
+  HDIS3BucketName:
+    Type: String
+    Description: "Name of the S3 bucket to trigger hdi-import-data function on object creation."
+
+Resources:
+
+  HdiRawDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref HDIS3BucketName
+
+  HdiHealthDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: hdi-health-data
+      AttributeDefinitions:
+        - AttributeName: userid
+          AttributeType: S
+        - AttributeName: hd-context-time
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userid
+          KeyType: HASH
+        - AttributeName: hd-context-time
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: auto-delete
+          Value: "no"
+
+  HdiAggregatedDailyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: hdi-aggregated-daily
+      AttributeDefinitions:
+        - AttributeName: userid
+          AttributeType: S
+        - AttributeName: hd-context-date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userid
+          KeyType: HASH
+        - AttributeName: hd-context-date
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: auto-delete
+          Value: "no"
+
+  HdiLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: hdi-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: HdiDynamoDBAndLoggingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeStream
+                  - dynamodb:UpdateItem
+                  - dynamodb:GetRecords
+                  - dynamodb:PutItem
+                  - dynamodb:ListStreams
+                  - dynamodb:DeleteItem
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:BatchGetItem
+                  - dynamodb:GetItem
+                  - dynamodb:GetShardIterator
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt HdiHealthDataTable.Arn
+                  - !GetAtt HdiAggregatedDailyTable.Arn
+
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:BatchGetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:ListStreams
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:PutItem
+                  - dynamodb:DescribeStream
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:Query
+                Resource: 
+                  - !Sub "${HdiHealthDataTable.StreamArn}"
+              
+              - Effect: Allow
+                Action:
+                  - s3:*
+                Resource: 
+                  - !Sub "arn:aws:s3:::${HDIS3BucketName}"
+                  - !Sub "arn:aws:s3:::${HDIS3BucketName}/*"
+
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: 
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/hdi-daily-aggregate:*
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/hdi-deep-insights:*
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/hdi-import-data:*
+      Tags:
+        - Key: auto-delete
+          Value: "no"
+
+  HdiImportDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: hdi-import-data
+      Handler: hdi-importdata.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      MemorySize: 512
+      Timeout: 300
+      CodeUri: ./src
+      Role: !GetAtt HdiLambdaExecutionRole.Arn
+      Layers:
+        - arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python312:13
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref HdiRawDataBucket
+            Events: s3:ObjectCreated:Put
+      Tags:
+        auto-delete: "no"
+
+  DailyAggregateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: hdi-daily-aggregate
+      Handler: hdi-dailyaggregate.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      MemorySize: 512
+      Timeout: 120
+      CodeUri: ./src
+      Role: !GetAtt HdiLambdaExecutionRole.Arn
+      Events:
+        HealthDataStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt HdiHealthDataTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 100
+      Tags:
+        auto-delete: "no"
+
+  DeepInsightsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: hdi-deep-insights
+      Handler: hdi-deepinsights.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      MemorySize: 512
+      Timeout: 60
+      CodeUri: ./src
+      Role: !GetAtt HdiLambdaExecutionRole.Arn
+      Tags:
+        auto-delete: "no"
+
+  HdiLoadTestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: hdi-load-test
+      StageName: dev
+      DefinitionBody:
+        swagger: "2.0"
+        info:
+          title: "hdi-load-test"
+          version: "1.0"
+        paths:
+          /getinsights:
+            x-amazon-apigateway-any-method:
+              produces:
+                - application/json
+              parameters:
+                - name: "proxy"
+                  in: "path"
+                  required: true
+                  type: "string"
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeepInsightsFunction.Arn}/invocations
+                passthroughBehavior: when_no_match
+                responses: {}
+      Tags:
+        auto-delete: "no"
+      EndpointConfiguration: REGIONAL
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          ThrottlingBurstLimit: 20000
+          ThrottlingRateLimit: 50000
+
+  HdiImportDataLambdaInvokePermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !GetAtt HdiImportDataFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: 's3.amazonaws.com'
+      SourceAccount: !Sub ${AWS::AccountId}
+      SourceArn: !GetAtt HdiRawDataBucket.Arn
+
+  DeepInsightsLambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DeepInsightsFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HdiLoadTestApi}/*/*/getinsights
+
+Outputs:
+  HdiLoadTestApiUrl:
+    Description: "URL of the hdi-load-test API in the dev stage"
+    Value: !Sub "https://${HdiLoadTestApi}.execute-api.${AWS::Region}.amazonaws.com/dev/getinsights"
+  HdiHealthDataTableName:
+    Description: "DynamoDB table name for health data"
+    Value: !Ref HdiHealthDataTable
+  HdiHealthDataTableStreamArn:
+    Description: "Stream ARN of the hdi-health-data DynamoDB table"
+    Value: !GetAtt HdiHealthDataTable.StreamArn
+  HdiAggregatedDailyTableName:
+    Description: "DynamoDB table name for aggregated daily data"
+    Value: !Ref HdiAggregatedDailyTable
+  DailyAggregateFunctionArn:
+    Description: "ARN of the Lambda function for daily aggregation"
+    Value: !GetAtt DailyAggregateFunction.Arn
+  DeepInsightsFunctionArn:
+    Description: "ARN of the Lambda function for deep insights"
+    Value: !GetAtt DeepInsightsFunction.Arn
+  HdiImportDataFunctionArn:
+    Description: "ARN of the Lambda function for S3 data import"
+    Value: !GetAtt HdiImportDataFunction.Arn
