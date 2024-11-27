@@ -17,7 +17,7 @@ The following sections will guide you through data ingestion, access patterns, s
 
 ### Data Ingestion
 
-Let’s assume that, before storage of raw data, the data undergoes preprocessing to ensure quality, filtering, transformation, or enrichment with contextual metadata. Below are two examples of typical health metric data for a user stored in a DynamoDB table: step_count and sleep_count in the "awake" context. If a metric lacks context, it will be denoted as "NA."
+Let’s assume that, before storage of raw data, the data undergoes preprocessing to ensure quality, filtering, transformation, or enrichment with contextual metadata. Below are two examples of typical health metric data for a user stored in a DynamoDB table: step_count and sleep_count in the "awake" context. If a metric lacks context, it will be denoted as **"NA"**.
 ```json  
     [
 		{
@@ -50,7 +50,7 @@ Let’s assume that, before storage of raw data, the data undergoes preprocessin
 ```
 ### Data aggregation
 
-The raw health data stored in a DynamoDB table is configured to capture item-level changes, which are pushed to a DynamoDB stream. An AWS Lambda function triggers with each update, generating daily summaries for changed health metrics per user. The aggregation module first retrieves any previous entries for the corresponding day before performing the aggregation. For example, if user data is first synced at 8 AM, it ingests the raw data into the table and creates an initial summary in the summary table, including the number of entries used. If the user syncs data again at 7 PM, the module fetches the existing aggregated value and entry count from the summary table to calculate the updated aggregation. These summaries serve as a basis for detailed insights into daily, weekly, monthly, 6-month, and yearly trends. The summary table also facilitates calculations of health metric scores, minimum, maximum, average, and trend changes over selected date ranges. Below are two examples of typical aggregated health metric data for a user stored in a DynamoDB table: step_count and sleep_count in the "awake" context. If a metric lacks context, it is denoted as "NA."
+The raw health data stored in a DynamoDB table is configured to capture item-level changes, which are pushed to a DynamoDB stream. An AWS Lambda function triggers with each update, generating daily summaries for changed health metrics per user. The aggregation module first retrieves any previous entries for the corresponding day before performing the aggregation. For example, if user data is first synced at 8 AM, it ingests the raw data into the table and creates an initial summary in the summary table, including the number of entries used. If the user syncs data again at 7 PM, the module fetches the existing aggregated value and entry count from the summary table to calculate the updated aggregation. These summaries serve as a basis for detailed insights into daily, weekly, monthly, 6-month, and yearly trends. The summary table also facilitates calculations of health metric scores, minimum, maximum, average, and trend changes over selected date ranges. Below are two examples of typical aggregated health metric data for a user stored in a DynamoDB table: step_count and sleep_count in the **"awake"** context. If a metric lacks context, it is denoted as "NA."
 ```json
 	[
 		{
@@ -90,13 +90,13 @@ This raw health data is collected every second, minute, or at specific intervals
 
 **Based on the ingested data, a sample item in the table would look like this:**
 
-|| Attribute | Value |
-|---| --- | --- |
+| | Attribute | Value |
+| --- | --- | --- |
 | **Partition Key** | **userid** | 1234567 |
-| **Sort Key** || **hd-context-time** | sleep_count#awake#2024-08-24 00:00:00 |
-| **quantity** | 60 |
-| **unit** | seconds |
-| **[Other attributes]** |  |
+| **Sort Key** | **hd-context-time** | sleep_count#awake#2024-08-24 00:00:00 |
+|  | **quantity** | 60 |
+|  | **unit** | seconds |
+|  | **[Other attributes]** |  |
 
 To fetch only sleep_count in the awake context for a user, the query becomes more targeted with this schema. 
 The key condition for the query uses partition key **userid="1234567"** and sort key **hd-context-time between  
@@ -108,12 +108,12 @@ To address the **second** access pattern, the **'userid'** uniquely identifies e
 
 **Based on the daily summary data, a sample item in the table would look like this:**
 
-| key/attribute | value |
-| --- | --- |
-| **userid** | 1234567 |
-| **hd-context-date** | sleep_count#awake#2024-08-24 |
-| **quantity** | 18000 |
-| **unit** | seconds |
+| | Attribute | Value |
+| --- | --- | --- |
+| **Partition Key** | **userid** | 1234567 |
+| **Sort Key** | **hd-context-date** | sleep_count#awake#2024-08-24 |
+|  | **quantity** | 18000 |
+|  | **unit** | seconds |
 
 ### Data insights
 
@@ -264,7 +264,7 @@ Below are sample responses for each insight type, which will be used to render c
 </details>
 
 
-**Important Note:** 
+## Important Note: 
 This application leverages multiple AWS services, and there are associated costs beyond the Free Tier usage. Please refer to the [AWS Pricing page](https://aws.amazon.com/pricing/) for specific details. You are accountable for any incurred AWS costs. This example solution does not imply any warranty.
 
 ## Requirements
@@ -314,8 +314,8 @@ From the command line, use AWS SAM to build and deploy the AWS resources as spec
 - The first Lambda function is triggered by an S3 PUT event when a new file is uploaded to the designated S3 bucket. This function imports the raw data into the 'hdi-health-data' DynamoDB table, which is configured to capture item-level changes through a DynamoDB stream. A second Lambda function is triggered by these updates, generating daily summaries for updated health metrics per user and storing the aggregated values in a separate DynamoDB table, 'hdi-aggregated-daily'.
 
 **Verification Steps:**
-- Explore the items in the hdi-aggregated-daily table to view the aggregated health data for each health metric code and its data context for each user.
-- Once the aggregated data is ready, navigate to the Lambda console and open the hdi-deep-insights function.  
+- Explore the items in the **hdi-aggregated-daily** table to view the aggregated health data for each health metric code and its data context for each user.
+- Once the aggregated data is ready, navigate to the Lambda console and open the **hdi-deep-insights** function.  
 You can test the function using the following input payload, replacing the placeholders with the appropriate values. Use insight_type "Y" for yearly, "M" for monthly, "W" for weekly, and "6M" for six-month insights:
 ```json	
 	{
@@ -326,7 +326,9 @@ You can test the function using the following input payload, replacing the place
 		"toDate": "<YYYY-MM-DD>"
 	}
 ```
-- To load test the aggregation and insights API, you can deploy the "Distributed Load Testing (DLT) on AWS" solution available here [DLT on AWS](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/).  
+
+- To load test the aggregation and insights API, you can deploy the "Distributed Load Testing (DLT) on AWS" solution available here [DLT on AWS](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/).
+  
 Once deployed you can invoke the insights API using the API Gateway end point that was provisioned as part of deployment process. Please refer to the API URL from the deployment output
 
 **Sample load test reference at scale**
@@ -359,6 +361,7 @@ The response times can be further improved by applying the following optimizatio
 
 
 ## Cleanup
+
 First delete/empty the objects in the S3 bucket where sample data was uploaded for import.   
 
 Then run the command  
