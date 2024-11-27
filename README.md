@@ -276,11 +276,11 @@ This application leverages multiple AWS services, and there are associated costs
 ## Deployment Instructions
 Create a new directory, navigate to that directory in a terminal and clone the GitHub repository:  
     
-    git clone https://gitlab.aws.dev/sshekaz/health-data-insights
+    git clone https://github.com/aws-samples/realtime-health-data-insights-dynamodb
 
 Change directory to the solution directory:  
     
-    cd health-data-insights
+    cd realtime-health-data-insights-dynamodb
 
 From the command line, use AWS SAM to build and deploy the AWS resources as specified in the template.yml file.  
 
