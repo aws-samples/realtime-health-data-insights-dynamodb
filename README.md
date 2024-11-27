@@ -90,10 +90,10 @@ This raw health data is collected every second, minute, or at specific intervals
 
 **Based on the ingested data, a sample item in the table would look like this:**
 
-| key/attribute | value |
-| --- | --- |
-| **userid** | 1234567 |
-| **hd-context-time** | sleep_count#awake#2024-08-24 00:00:00 |
+|| Attribute | Value |
+|---| --- | --- |
+| **Partition Key** | **userid** | 1234567 |
+| **Sort Key** || **hd-context-time** | sleep_count#awake#2024-08-24 00:00:00 |
 | **quantity** | 60 |
 | **unit** | seconds |
 | **[Other attributes]** |  |
