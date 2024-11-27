@@ -93,21 +93,6 @@ def lambda_handler(event, context):
             start_date = event.get(FROMDATE)
             end_date = event.get(TODATE)
         
-        '''
-        # Default value of unit
-        unit = NA 
-        # Determine the unit based on metric_code_context
-        if HEART_RATE in metric_code_context:
-            unit = BPM
-        elif STEP_COUNT in metric_code_context:
-            unit = COUNT
-        elif SKIN_TEMP in metric_code_context:
-            unit = DEG_CELCIUS
-        elif SLEEP_COUNT in metric_code_context:
-            unit = SECONDS
-        elif SPO2 in metric_code_context:
-            unit = PERCENT    
-        '''    
         response_bars = {}
         data_by_period = {}
 
@@ -165,6 +150,8 @@ def lambda_handler(event, context):
         # Compute the average
         average = sum(values_list) / len(values_list) if values_list else Decimal(0)
         
+        # This will enable testing from API Gateway / Other Clients like Postman
+        # as well as from within Lambda console.
         if REQUEST_BODY in event:
             data =  {
                 INSIGHT_TYPE: insight_type,
