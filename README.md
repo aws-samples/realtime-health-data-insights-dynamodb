@@ -137,7 +137,7 @@ Below are sample responses for each insight type, which will be used to render c
 
 **Weekly Sample**
 <details>
-<summary>Click to expand Weekly sample JSON</summary>
+<summary>Click to expand Weekly sample response</summary>
 	
 ```json
 	{
@@ -170,7 +170,7 @@ Below are sample responses for each insight type, which will be used to render c
 
 **Monthly Sample**
 <details>
-<summary>Click to expand Monthly sample JSON</summary>
+<summary>Click to expand Monthly sample response</summary>
 	
 ```json
 	{
@@ -203,7 +203,7 @@ Below are sample responses for each insight type, which will be used to render c
 
 **6 Months Sample**
 <details>
-<summary>Click to expand 6 Months sample JSON</summary>
+<summary>Click to expand 6 Months sample response</summary>
 	
 ```json
 	{
@@ -238,7 +238,7 @@ Below are sample responses for each insight type, which will be used to render c
 
 **Yearly Sample**
 <details>
-<summary>Click to expand Yearly sample JSON</summary>
+<summary>Click to expand Yearly sample response</summary>
 	
 ```json
 	{
