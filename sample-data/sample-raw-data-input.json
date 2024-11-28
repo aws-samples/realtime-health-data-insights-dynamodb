@@ -109,7 +109,7 @@
 		"unit" : "count",
 		"health_metric" : "step_count",
 		"metric_context" : "NA",
-		"timestamp" : "2024-08-24 00:00:00",
+		"timestamp" : "2024-08-24 11:30:00",
 		"device_name" : "HDI Watch",
 		"device_make" : "HDI Inc.",
 		"device_type" : "Watch",
