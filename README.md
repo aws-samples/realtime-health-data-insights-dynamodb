@@ -11,7 +11,7 @@ Health tracking apps generate vast amounts of data from wearables and mobile sou
 ## Solution Overview
 Wearables like smartwatches and fitness trackers continuously collect various health metrics—such as heart rate, steps, sleep patterns and more, which are often synced with a companion mobile app or cloud service. This app or service acts as an intermediary, transmitting data to a backend system via APIs. Typically, RESTful or GraphQL APIs are used for data transfer over HTTP/S, with some platforms leveraging MQTT or WebSockets for real-time streaming.
 
-The health data is stored in a DynamoDB table configured to capture item-level changes, which are pushed to a DynamoDB stream. An AWS Lambda function triggers with each update, generating daily summaries for changed health metrics per user. These summaries are stored in a separate DynamoDB table, providing a foundation for deeper insights into **daily, weekly, monthly, 6-month, and yearly trends**. This summary table also enables calculations of **health metric score, minimum, maximum, average, and trend changes** across selected date and time ranges.
+The health data is stored in a DynamoDB table configured to capture item-level changes, which are pushed to a DynamoDB stream. An AWS Lambda function triggers with each update, generating daily aggregation for changed health metrics per user. These aggregations are stored in a separate DynamoDB table, providing a foundation for deeper insights into **daily, weekly, monthly, 6-month, and yearly trends**. This aggregated table also enables calculations of **health metric score, minimum, maximum, average, and trend changes** across selected date and time ranges.
 
 The following sections will guide you through data ingestion, access patterns, schema design in DynamoDB, aggregation, and APIs for deeper insights. 
 
@@ -50,7 +50,7 @@ Let’s assume that, before storage of raw data, the data undergoes preprocessin
 ```
 ### Data aggregation
 
-The raw health data stored in a DynamoDB table is configured to capture item-level changes, which are pushed to a DynamoDB stream. An AWS Lambda function triggers with each update, generating daily summaries for changed health metrics per user. The aggregation module first retrieves any previous entries for the corresponding day before performing the aggregation. For example, if user data is first synced at 8 AM, it ingests the raw data into the table and creates an initial summary in the summary table, including the number of entries used. If the user syncs data again at 7 PM, the module fetches the existing aggregated value and entry count from the summary table to calculate the updated aggregation. These summaries serve as a basis for detailed insights into daily, weekly, monthly, 6-month, and yearly trends. The summary table also facilitates calculations of health metric scores, minimum, maximum, average, and trend changes over selected date ranges. Below are two examples of typical aggregated health metric data for a user stored in a DynamoDB table: step_count and sleep_count in the **"awake"** context. If a metric lacks context, it is denoted as "NA."
+The raw health data stored in a DynamoDB table is configured to capture item-level changes, which are pushed to a DynamoDB stream. An AWS Lambda function triggers with each update, generating daily summaries for changed health metrics per user. The aggregation module first retrieves any previous entries for the corresponding day before performing the aggregation. For example, if user data is first synced at 8 AM, it ingests the raw data into the table and creates an initial aggregation in the aggregated table, including the number of entries used. If the user syncs data again at 7 PM, the module fetches the existing aggregated value and entry count from the aggregated table to calculate the updated aggregation. These aggregations serve as a basis for detailed insights into daily, weekly, monthly, 6-month, and yearly trends. The aggregated table also facilitates calculations of health metric scores, minimum, maximum, average, and trend changes over selected date ranges. Below are two examples of typical aggregated health metric data for a user stored in a DynamoDB table: step_count and sleep_count in the **"awake"** context. If a metric lacks context, it is denoted as "NA."
 ```json
 	[
 		{
@@ -76,7 +76,7 @@ The raw health data stored in a DynamoDB table is configured to capture item-lev
 These are the access patterns we'll be considering for the Health data insights schema design.
 
 1. Save the user's raw health metric data with context
-2. Save the user's daily summary health metric data with context
+2. Save the user's daily aggregated health metric data with context
 3. Get daily insights for a user's specific health metric with context
 4. Get weekly insights for a user's specific health metric with context
 5. Get monthly insights for a user's specific health metric with context
@@ -106,7 +106,7 @@ This query will only read the relevant items.
 
 To address the **second** access pattern, the **'userid'** uniquely identifies each user, making it an ideal candidate for the partition key. Health metric data is recorded with a date indicating the specific day of aggregation, making **'date'** a logical choice for the sort key. However, to accommodate access patterns **3 to 8**, which focus on specific health metrics, the sort key needs to be a composite of health_metric, metric_context, and date, separated by a delimiter (e.g., **health_metric#metric_context#date**). This composite sort key structure allows for more efficient and targeted queries.
 
-**Based on the daily summary data, a sample item in the aggregated table would look like this:**
+**Based on the daily aggregated data, a sample item in the aggregated table would look like this:**
 
 | | Attribute | Value |
 | --- | --- | --- |
