@@ -6,18 +6,22 @@ Health tracking apps generate vast amounts of data from wearables and mobile sou
 
 ## Architecture
 
-![Diagram](/images/hdi-arch-v2.png)
+![Diagram](/images/hdi-arch-v3.png)
 
 ## Solution Overview
-Wearables like smartwatches and fitness trackers continuously collect various health metrics—such as heart rate, steps, sleep patterns and more, which are often synced with a companion mobile app or cloud service. This app or service acts as an intermediary, transmitting data to a backend system via APIs. Typically, RESTful or GraphQL APIs are used for data transfer over HTTP/S, with some platforms leveraging MQTT or WebSockets for real-time streaming.
+Wearables like smartwatches and fitness trackers continuously collect various health metrics—such as heart rate, steps, sleep patterns, and more, which are often synced with a companion mobile app or cloud service. This app or service acts as an intermediary, transmitting data to a backend system via APIs. Typically, RESTful or GraphQL APIs are used for data transfer over HTTP/S, with some platforms leveraging MQTT or WebSockets for real-time streaming. While this solution does not focus on how the data is collected and transmitted to the backend system, it emphasizes how to leverage Amazon DynamoDB efficiently to aggregate and store this data. 
 
-The health data is stored in a DynamoDB table configured to capture item-level changes, which are pushed to a DynamoDB stream. An AWS Lambda function triggers with each update, generating daily aggregation for changed health metrics per user. These aggregations are stored in a separate DynamoDB table, providing a foundation for deeper insights into **daily, weekly, monthly, 6-month, and yearly trends**. This aggregated table also enables calculations of **health metric score, minimum, maximum, average, and trend changes** across selected date and time ranges.
+The continuously collected health metrics are stored in a primary Amazon DynamoDB table. The health data in the primary table is configured to capture item-level changes, which are pushed to an Amazon DynamoDB stream. An AWS Lambda function triggers with each update, performing these day-wise aggregations for changed metrics per user. Aggregation for each health metric involves calculating either a day-wise average (e.g., heart rate) or a day-wise sum (e.g., steps), depending on the metric. These aggregations are stored in a separate Amazon DynamoDB table, providing a foundation for deeper insights into **daily, weekly, monthly, 6-month, and yearly trends**. This aggregated table also enables calculations of health metric **score, minimum, maximum, average, and trend changes** across selected date and time ranges.
+
 
 The following sections will guide you through data ingestion, access patterns, schema design in DynamoDB, aggregation, and APIs for deeper insights. 
 
 ### Data Ingestion
 
-Let’s assume that, before storage of raw data, the data undergoes preprocessing to ensure quality, filtering, transformation, or enrichment with contextual metadata. Below are two examples of typical health metric data for a user stored in a DynamoDB table: step_count and sleep_count in the "awake" context. If a metric lacks context, it will be denoted as **"NA"**.
+Health metric data typically consists of measurements like heart rate, step count, or sleep patterns, each associated with one or more specific contexts to provide deeper insights. For example, the heart_rate metric might be associated with contexts such as **"resting," "workout," or "mindfulness"**, while the sleep_count metric could be associated with contexts like **"in the bed", "awake", "deep", "rem", or "light"**. These contexts add meaningful dimensions to the raw data, enabling more accurate analysis and personalized insights.
+Before being stored in the primary Amazon DynamoDB table, the raw data undergoes preprocessing to ensure quality, including filtering, transformation, or enrichment with contextual metadata. If a metric lacks context, it is assigned a default value of **"NA"** to maintain consistency in data representation.
+Below are two examples of typical health metric data for a user stored in a Amazon DynamoDB table: step_count and sleep_count in the "awake" context.
+
 ```json  
     [
 		{
@@ -50,7 +54,16 @@ Let’s assume that, before storage of raw data, the data undergoes preprocessin
 ```
 ### Data aggregation
 
-The raw health data stored in a DynamoDB table is configured to capture item-level changes, which are pushed to a DynamoDB stream. An AWS Lambda function triggers with each update, generating daily summaries for changed health metrics per user. The aggregation module first retrieves any previous entries for the corresponding day before performing the aggregation. For example, if user data is first synced at 8 AM, it ingests the raw data into the table and creates an initial aggregation in the aggregated table, including the number of entries used. If the user syncs data again at 7 PM, the module fetches the existing aggregated value and entry count from the aggregated table to calculate the updated aggregation. These aggregations serve as a basis for detailed insights into daily, weekly, monthly, 6-month, and yearly trends. The aggregated table also facilitates calculations of health metric scores, minimum, maximum, average, and trend changes over selected date ranges. Below are two examples of typical aggregated health metric data for a user stored in a DynamoDB table: step_count and sleep_count in the **"awake"** context. If a metric lacks context, it is denoted as "NA."
+Raw data in the primary table serves as the foundation for generating day-wise aggregations, where key metrics are calculated based on specific contexts such as daily averages or sums. This aggregated data is stored in a separate daily aggregated Amazon DynamoDB table and provides a streamlined and meaningful representation of the original dataset, offering several advantages
+- **Enhanced Performance:** Pre-computed aggregates eliminate the need for repetitive calculations on raw data during queries, reducing response times for user requests and improving application performance.
+- **Contextual Insights:** Aggregations tailored to specific contexts (e.g., daily averages for heart rate during workouts) provide actionable insights that are more meaningful for users or decision-makers.
+- **Scalability:** By working with aggregated data, systems can handle higher workloads, as they avoid processing vast amounts of raw data for each query, ensuring scalability for large datasets and concurrent users.
+- **Support for Trend Analysis:** Aggregated data over periods (e.g., daily, weekly, monthly) enables trend identification and anomaly detection.
+- **Cost Optimization:** Aggregated data minimizes computational overhead and the need for frequent intensive processing of raw data, reducing both operational costs and resource usage.
+
+By leveraging aggregated data, organizations can deliver faster, more meaningful insights while ensuring scalability, cost-effectiveness, and a better user experience.
+Below are two examples of typical aggregated health metric data for a user stored in a DynamoDB table: step_count and sleep_count in the **"awake"** context.
+
 ```json
 	[
 		{
@@ -117,7 +130,11 @@ To address the **second** access pattern, the **'userid'** uniquely identifies e
 
 ### Data insights
 
-To retrieve daily, weekly, monthly, 6-month, and yearly insights for a specific health metric, the input payload would follow a specific format. Below is an example of a request to fetch yearly insights for a user's specific health metric: 
+The day wise aggregated data serve as a basis for detailed insights into daily, weekly, monthly, 6-month, and yearly trends. The day wise aggregated table also facilitates calculations of health metric scores, minimum, maximum, average, and trend changes over selected date ranges.
+The data insights module will retrieve relevant data from the day-wise aggregated table to generate the requested insights. This module developed as an API, enables seamless integration with health applications. 
+
+To retrieve daily, weekly, monthly, 6-month, and yearly insights for a specific health metric, the input payload would follow a specific format. Below is an example of a request to fetch yearly insights for a user's specific health metric:
+ 
 ```json
 	{
 		"insight-type": "yearly",
@@ -339,7 +356,11 @@ You can test the function using the following input payload, replacing the place
 
 Once deployed you can invoke the insights API using the API Gateway end point that was provisioned as part of deployment process. **Please refer to the API URL from the deployment output**.
 
-**Sample load test reference at scale**
+You can use any load testing tool of your choice; however, ensure that the userid range is well-distributed to evenly spread requests across Amazon DynamoDB partitions and avoid hot partition issues. Additionally, deploy your application in a scalable environment capable of handling high loads, such as AWS Lambda with Provisioned Concurrency, ECS, or EC2 with autoscaling enabled.
+
+**Sample load test reference at small scale**
+
+Day-wise aggregation of 100 records completed in an average of 20 milliseconds.
 
 The table below shows health data insights response times recorded during a load test. Each insight type processed an average of 2.4 million requests, with a sustained throughput of around 6,700 requests per second.
 
