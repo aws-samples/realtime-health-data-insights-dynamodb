@@ -6,7 +6,7 @@ Health tracking apps generate vast amounts of data from wearables and mobile sou
 
 ## Architecture
 
-![Diagram](/images/hdi-arch-v3.png)
+![Diagram](/images/hdi-arch-v2.png)
 
 ## Solution Overview
 Wearables like smartwatches and fitness trackers continuously collect various health metrics—such as heart rate, steps, sleep patterns, and more, which are often synced with a companion mobile app or cloud service. This app or service acts as an intermediary, transmitting data to a backend system via APIs. Typically, RESTful or GraphQL APIs are used for data transfer over HTTP/S, with some platforms leveraging MQTT or WebSockets for real-time streaming. While this solution does not focus on how the data is collected and transmitted to the backend system, it emphasizes how to leverage Amazon DynamoDB efficiently to aggregate and store this data. 
