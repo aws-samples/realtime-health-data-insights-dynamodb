@@ -360,16 +360,14 @@ You can use any load testing tool of your choice; however, ensure that the useri
 
 **Sample load test reference at small scale**
 
-Day-wise aggregation of 100 records completed in an average of 20 milliseconds.
-
-The table below shows health data insights response times recorded during a load test. Each insight type processed an average of 2.4 million requests, with a sustained throughput of around 6,700 requests per second.
+The table below shows health data insights response times recorded during a load test. Each insight type processed more than 85 million requests, with a sustained throughput of approximately 100,000 requests per second.
 
 | Insight Type | Average API response time | Average query response time | Total no. of requests | No. of requests per second |
 | --- | --- | --- | --- | --- |
-| Weekly | 9 ms | 2 ms | 2549980 | 7083 |
-| Monthly | 11 ms | 3.5 ms | 2599890 | 7222 |
-| 6 Months | 30 ms | 8.4 ms | 2326965 | 6464 |
-| Yearly | 47 ms | 12.5 ms | 2182282 | 6062 |
+| Weekly | 9 ms | 1.91 ms | 94966602 | 105753 |
+| Monthly | 12 ms | 2.25 ms | 95691701 | 106561 |
+| 6 Months | 30 ms | 3.54 ms | 89405998 | 99561 |
+| Yearly | 47 ms | 5.60 ms | 85844861 | 95595 |
 
 The response times can be further improved by applying the following optimization techniques and best practices, which will also contribute to cost efficiency.
 
